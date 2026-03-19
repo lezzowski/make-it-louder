@@ -39,9 +39,9 @@ Make it louder! routes any tab's audio through the Web Audio API and lets you fr
 
 **Privacy**
 - No network requests of any kind
-- No storage access — all state lives in memory and is discarded when the popup closes
+- Slider and toggle values are persisted locally via `browser.storage.local` so settings survive popup close/reopen — no data ever leaves your device
 - Declared as collecting no user data (`data_collection_permissions: none`) in the Firefox manifest
-- Requires only `activeTab` and `scripting` permissions
+- Requires only `activeTab`, `scripting`, and `storage` permissions
 
 ---
 

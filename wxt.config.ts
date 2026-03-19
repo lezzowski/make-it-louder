@@ -6,7 +6,7 @@ export default defineConfig({
     name: 'Make it louder!',
     description: 'Amplify per-tab audio up to 500%. Privacy-first, stateless, lightweight.',
     version: '2.0.1',
-    permissions: ['activeTab', 'scripting'],
+    permissions: ['activeTab', 'scripting', 'storage'],
     icons: {
       '16': 'icon.svg',
       '32': 'icon.svg',

@@ -90,6 +90,39 @@ async function updateBadge(percentage: number): Promise<void> {
   });
 }
 
+// --- State Persistence ---
+
+/** Storage key for persisted popup state. */
+const STORAGE_KEY = 'popup_state';
+
+interface PopupState {
+  volume: number;
+  bass: number;
+  mono: boolean;
+}
+
+/**
+ * Reads the last saved state from local storage.
+ * Falls back to defaults (100% vol, 0 bass, stereo) if nothing is stored.
+ */
+async function loadState(): Promise<PopupState> {
+  const result = await browser.storage.local.get(STORAGE_KEY);
+  const saved = result[STORAGE_KEY] as PopupState | undefined;
+  return saved ?? { volume: 100, bass: 0, mono: false };
+}
+
+/**
+ * Persists the current slider/toggle values to local storage.
+ */
+function persistState(): void {
+  const state: PopupState = {
+    volume: parseInt(volumeSlider.value, 10),
+    bass: parseInt(bassSlider.value, 10),
+    mono: monoToggle.checked,
+  };
+  browser.storage.local.set({ [STORAGE_KEY]: state });
+}
+
 // --- UI Sync ---
 
 /**
@@ -131,6 +164,20 @@ function updateBassUI(dB: number): void {
 }
 
 /**
+ * Hydrates the popup UI from a state snapshot WITHOUT sending messages.
+ * Used on popup open to restore the previous session values.
+ *
+ * @param state - The persisted state to restore.
+ */
+function hydrateUI(state: PopupState): void {
+  volumeSlider.value = String(state.volume);
+  bassSlider.value = String(state.bass);
+  monoToggle.checked = state.mono;
+  updateVolumeUI(state.volume);
+  updateBassUI(state.bass);
+}
+
+/**
  * Applies a full state snapshot — used by presets to set everything at once.
  */
 function applyState(volume: number, bass: number, mono: boolean): void {
@@ -150,6 +197,9 @@ function applyState(volume: number, bass: number, mono: boolean): void {
 
   // Update badge
   updateBadge(volume);
+
+  // Persist so the next popup open sees the preset values.
+  persistState();
 }
 
 // --- View Switching ---
@@ -174,6 +224,7 @@ volumeSlider.addEventListener('input', () => {
   updateVolumeUI(percentage);
   sendToContent('setGain', percentage / 100);
   updateBadge(percentage);
+  persistState();
 });
 
 /** Bass slider: real-time feedback. */
@@ -181,11 +232,13 @@ bassSlider.addEventListener('input', () => {
   const dB = parseInt(bassSlider.value, 10);
   updateBassUI(dB);
   sendToContent('setBass', dB);
+  persistState();
 });
 
 /** Mono toggle. */
 monoToggle.addEventListener('change', () => {
   sendToContent('setMono', monoToggle.checked);
+  persistState();
 });
 
 /** Preset: Movie — 250% vol + 10dB bass. */
@@ -216,4 +269,8 @@ tabAbout.addEventListener('click', () => switchTab(2));
 
   activeTabId = tab.id;
   await injectContentScript(activeTabId);
+
+  // Restore slider/toggle values from the previous session.
+  const state = await loadState();
+  hydrateUI(state);
 })();
