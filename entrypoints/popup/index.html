@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Make it louder!</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <!-- Tab Navigation -->
+    <nav id="tab-bar">
+      <button id="tab-control" class="tab-btn active" type="button">Control</button>
+      <button id="tab-about" class="tab-btn" type="button">About</button>
+    </nav>
+
+    <!-- Control View -->
+    <section id="view-control" class="view active">
+      <label id="volume-label" for="volume-slider">100%</label>
+
+      <input
+        id="volume-slider"
+        type="range"
+        min="100"
+        max="500"
+        step="10"
+        value="100"
+      />
+
+      <div id="volume-range-labels">
+        <span>100%</span>
+        <span>500%</span>
+      </div>
+
+      <button id="reset-btn" type="button">
+        <span class="reset-icon">↺</span> Reset to 100%
+      </button>
+
+      <div id="warning-box" class="hidden" role="alert">
+        ⚠️ <strong>Caution:</strong> Volume above 300% may cause distortion or hearing damage.
+      </div>
+    </section>
+
+    <!-- About View -->
+    <section id="view-about" class="view">
+      <div class="about-content">
+        <h2>Make it louder! 🔊</h2>
+        <p class="version">v1.0.0</p>
+        <p>A minimalist, privacy-first volume booster. Zero data collection, zero tracking.</p>
+
+        <div class="about-credits">
+          <p>Built with ❤️</p>
+          <a
+            id="support-link"
+            href="https://github.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            ⭐ Support on GitHub
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

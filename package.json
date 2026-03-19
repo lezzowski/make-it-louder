@@ -1,0 +1,21 @@
+{
+  "name": "make-it-louder",
+  "description": "Amplify per-tab audio up to 500%. Privacy-first, stateless, lightweight.",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "wxt",
+    "dev:firefox": "wxt -b firefox --mv3",
+    "build": "wxt build",
+    "build:firefox": "wxt build -b firefox --mv3",
+    "zip": "wxt zip",
+    "zip:firefox": "wxt zip -b firefox --mv3",
+    "compile": "tsc --noEmit",
+    "postinstall": "wxt prepare"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3",
+    "wxt": "^0.20.20"
+  }
+}
