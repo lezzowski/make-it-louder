@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'Make it louder!',
     description: 'Amplify per-tab audio up to 500%. Privacy-first, stateless, lightweight.',
-    version: '2.0.1',
+    version: '2.0.2',
     permissions: ['activeTab', 'scripting', 'storage'],
     icons: {
       '16': 'icon.svg',
