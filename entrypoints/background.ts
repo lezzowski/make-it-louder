@@ -1,12 +1,14 @@
 /**
- * Background script — Badge manager.
+ * Background script — Badge manager (V2).
  *
- * Listens for `updateBadge` messages from the popup and sets the toolbar
- * icon badge text to reflect the current volume percentage.
- * Badge is cleared when volume is at the default 100%.
+ * Badge states:
+ * - 0%:   "MUTE" with red background
+ * - 100%: cleared (empty string)
+ * - >100%: percentage number with indigo background
  */
 
-const BADGE_COLOR = '#6366f1'; // Indigo-500 — visible on both light and dark toolbars.
+const BADGE_COLOR_DEFAULT = '#6366f1'; // Indigo-500
+const BADGE_COLOR_MUTE = '#ef4444';    // Red-500
 
 export default defineBackground(() => {
   browser.runtime.onMessage.addListener(
@@ -14,10 +16,23 @@ export default defineBackground(() => {
       if (message.type !== 'updateBadge') return;
 
       const percentage = Math.round(message.value);
-      const text = percentage <= 100 ? '' : String(percentage);
+
+      let text: string;
+      let color: string;
+
+      if (percentage === 0) {
+        text = 'MUTE';
+        color = BADGE_COLOR_MUTE;
+      } else if (percentage <= 100) {
+        text = '';
+        color = BADGE_COLOR_DEFAULT;
+      } else {
+        text = String(percentage);
+        color = BADGE_COLOR_DEFAULT;
+      }
 
       browser.action.setBadgeText({ text, tabId: message.tabId });
-      browser.action.setBadgeBackgroundColor({ color: BADGE_COLOR, tabId: message.tabId });
+      browser.action.setBadgeBackgroundColor({ color, tabId: message.tabId });
     },
   );
 });

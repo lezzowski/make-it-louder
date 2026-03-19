@@ -1,28 +1,36 @@
 /**
- * Content script — Web Audio API engine.
+ * Content script — Web Audio API engine (V2).
  *
- * Why `registration: 'runtime'`: This script is injected on-demand via
- * `browser.scripting.executeScript` from the popup, NOT auto-injected on matching URLs.
- * This avoids unnecessary overhead on every page load.
+ * Audio graph per media element:
+ *   MediaElementSource → GainNode → BiquadFilterNode (lowshelf 200Hz) → destination
  *
- * Architecture:
- * 1. Scans all <audio>/<video> elements on the page.
- * 2. Wires each through AudioContext → MediaElementSource → GainNode → destination.
- * 3. Watches for dynamically added media via MutationObserver.
- * 4. Listens for `setGain` messages from the popup to adjust gain in real-time.
+ * Mono downmix is handled by setting `channelCount = 1` and
+ * `channelCountMode = 'explicit'` on the destination connection,
+ * which collapses stereo to mono without extra splitter/merger nodes.
+ *
+ * Cleanup: all nodes are disconnected and AudioContext is closed on `beforeunload`.
  */
 
 /** Shared AudioContext — one per tab injection lifecycle. */
 let audioContext: AudioContext | null = null;
 
-/** All active GainNodes in this tab, used to apply gain changes globally. */
-const gainNodes: GainNode[] = [];
+/** Per-element node chain for global parameter updates. */
+interface MediaNodeChain {
+  source: MediaElementAudioSourceNode;
+  gain: GainNode;
+  bass: BiquadFilterNode;
+}
+
+const nodeChains: MediaNodeChain[] = [];
+
+/** Current mono state — applied via channelCount on BiquadFilter output. */
+let monoEnabled = false;
 
 /** Marker attribute to prevent double-wiring (createMediaElementSource is one-shot). */
 const BOOSTED_ATTR = 'data-vlb-boosted';
 
 /**
- * Connects a single media element to a GainNode via the Web Audio API.
+ * Connects a single media element to the full audio pipeline.
  * Skips elements already processed (marked with BOOSTED_ATTR).
  *
  * @param el - The HTMLMediaElement (<audio> or <video>) to amplify.
@@ -36,12 +44,20 @@ function connectMediaElement(el: HTMLMediaElement): void {
 
   try {
     const source = audioContext.createMediaElementSource(el);
+
     const gainNode = audioContext.createGain();
 
-    source.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    const bassFilter = audioContext.createBiquadFilter();
+    bassFilter.type = 'lowshelf';
+    bassFilter.frequency.value = 200;
+    bassFilter.gain.value = 0; // 0dB = no boost by default
 
-    gainNodes.push(gainNode);
+    // Wire: source → gain → bass → destination
+    source.connect(gainNode);
+    gainNode.connect(bassFilter);
+    bassFilter.connect(audioContext.destination);
+
+    nodeChains.push({ source, gain: gainNode, bass: bassFilter });
     el.setAttribute(BOOSTED_ATTR, 'true');
   } catch (err) {
     // Edge case: element might already be captured by another extension or script.
@@ -51,7 +67,7 @@ function connectMediaElement(el: HTMLMediaElement): void {
 
 /**
  * Scans the entire document for <audio> and <video> elements
- * and wires each one through the gain pipeline.
+ * and wires each one through the audio pipeline.
  */
 function scanAndConnect(): void {
   const mediaElements = document.querySelectorAll<HTMLMediaElement>('audio, video');
@@ -60,15 +76,72 @@ function scanAndConnect(): void {
 
 /**
  * Applies the given gain value to ALL active GainNodes.
- * Uses `setValueAtTime` instead of direct assignment to prevent audio pops/clicks.
+ * Uses `setValueAtTime` to prevent audio pops/clicks.
  *
- * @param value - Gain multiplier (1.0 = 100%, 5.0 = 500%).
+ * @param value - Gain multiplier (0.0 = mute, 5.0 = 500%).
  */
 function applyGain(value: number): void {
   if (!audioContext) return;
+  for (const chain of nodeChains) {
+    chain.gain.gain.setValueAtTime(value, audioContext.currentTime);
+  }
+}
 
-  for (const node of gainNodes) {
-    node.gain.setValueAtTime(value, audioContext.currentTime);
+/**
+ * Applies the given bass boost to ALL active BiquadFilterNodes.
+ *
+ * @param dB - Bass gain in decibels (0–20).
+ */
+function applyBass(dB: number): void {
+  if (!audioContext) return;
+  for (const chain of nodeChains) {
+    chain.bass.gain.setValueAtTime(dB, audioContext.currentTime);
+  }
+}
+
+/**
+ * Toggles mono downmix by reconnecting filter outputs.
+ * Mono: channelCount=1, explicit mode collapses stereo to center.
+ * Stereo: channelCount=2, default mode restores original channels.
+ *
+ * @param enabled - Whether to enable mono downmix.
+ */
+function applyMono(enabled: boolean): void {
+  if (!audioContext) return;
+  monoEnabled = enabled;
+
+  for (const chain of nodeChains) {
+    chain.bass.disconnect();
+    if (monoEnabled) {
+      chain.bass.channelCount = 1;
+      chain.bass.channelCountMode = 'explicit';
+    } else {
+      chain.bass.channelCount = 2;
+      chain.bass.channelCountMode = 'max';
+    }
+    chain.bass.connect(audioContext.destination);
+  }
+}
+
+/**
+ * Disconnects all audio nodes and closes the AudioContext.
+ * Prevents memory leaks when the tab is closed or navigated away.
+ */
+function cleanup(): void {
+  for (const chain of nodeChains) {
+    try {
+      chain.bass.disconnect();
+      chain.gain.disconnect();
+      chain.source.disconnect();
+    } catch {
+      // Node may already be disconnected — safe to ignore.
+    }
+  }
+  nodeChains.length = 0;
+
+  if (audioContext) {
+    audioContext.close().catch(() => {});
+    audioContext = null;
   }
 }
 
@@ -87,7 +160,6 @@ export default defineContentScript({
           if (node instanceof HTMLMediaElement) {
             connectMediaElement(node);
           }
-          // Also check children of added containers.
           if (node instanceof HTMLElement) {
             const nested = node.querySelectorAll<HTMLMediaElement>('audio, video');
             nested.forEach(connectMediaElement);
@@ -98,15 +170,27 @@ export default defineContentScript({
 
     observer.observe(document.body, { childList: true, subtree: true });
 
-    // Listen for gain adjustment messages from the popup.
+    // Cleanup on tab close / navigation to prevent memory leaks.
+    window.addEventListener('beforeunload', cleanup);
+
+    // Listen for messages from the popup.
     browser.runtime.onMessage.addListener(
-      (message: { type: string; value: number }) => {
-        if (message.type === 'setGain') {
-          // Resume AudioContext if suspended (browser autoplay policy).
-          if (audioContext?.state === 'suspended') {
-            audioContext.resume();
-          }
-          applyGain(message.value);
+      (message: { type: string; value: number | boolean }) => {
+        // Resume AudioContext if suspended (browser autoplay policy).
+        if (audioContext?.state === 'suspended') {
+          audioContext.resume();
+        }
+
+        switch (message.type) {
+          case 'setGain':
+            applyGain(message.value as number);
+            break;
+          case 'setBass':
+            applyBass(message.value as number);
+            break;
+          case 'setMono':
+            applyMono(message.value as boolean);
+            break;
         }
       },
     );

@@ -1,66 +1,98 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Make it louder!</title>
-    <link rel="stylesheet" href="./style.css" />
-  </head>
-  <body>
-    <!-- Tab Navigation -->
-    <nav id="tab-bar">
-      <button id="tab-control" class="tab-btn active" type="button">Control</button>
-      <button id="tab-about" class="tab-btn" type="button">About</button>
-    </nav>
 
-    <!-- Control View -->
-    <section id="view-control" class="view active">
-      <label id="volume-label" for="volume-slider">100%</label>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Make it louder!</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
 
-      <input
-        id="volume-slider"
-        type="range"
-        min="100"
-        max="500"
-        step="10"
-        value="100"
-      />
+<body>
+  <!-- Tab Navigation -->
+  <nav id="tab-bar">
+    <button id="tab-control" class="tab-btn active" type="button">Control</button>
+    <button id="tab-advanced" class="tab-btn" type="button">Advanced</button>
+    <button id="tab-about" class="tab-btn" type="button">About</button>
+  </nav>
 
-      <div id="volume-range-labels">
-        <span>100%</span>
-        <span>500%</span>
-      </div>
+  <!-- Control View -->
+  <section id="view-control" class="view active">
+    <label id="volume-label" for="volume-slider">100%</label>
 
-      <button id="reset-btn" type="button">
-        <span class="reset-icon">↺</span> Reset to 100%
+    <input id="volume-slider" type="range" min="0" max="500" step="10" value="100" />
+
+    <div id="volume-range-labels">
+      <span>0%</span>
+      <span>500%</span>
+    </div>
+
+    <!-- Preset Buttons -->
+    <div id="presets">
+      <button id="preset-movie" class="preset-btn" type="button" title="250% Volume + 10dB Bass">
+        🎬 Movie
       </button>
+      <button id="preset-podcast" class="preset-btn" type="button" title="150% Volume + 0dB Bass">
+        🎙️ Podcast
+      </button>
+      <button id="preset-reset" class="preset-btn" type="button" title="100% Volume + 0dB Bass + Stereo">
+        🔄 Reset
+      </button>
+    </div>
 
-      <div id="warning-box" class="hidden" role="alert">
-        ⚠️ <strong>Caution:</strong> Volume above 300% may cause distortion or hearing damage.
+    <div id="warning-box" class="hidden" role="alert">
+      ⚠️ <strong>Caution:</strong> Volume above 300% may cause distortion or hearing damage.
+    </div>
+  </section>
+
+  <!-- Advanced View -->
+  <section id="view-advanced" class="view">
+    <!-- Bass Boost -->
+    <div class="advanced-section">
+      <div class="advanced-header">
+        <span class="advanced-icon">🔈</span>
+        <span>Bass Boost</span>
+        <span id="bass-value" class="advanced-value">0 dB</span>
       </div>
-    </section>
-
-    <!-- About View -->
-    <section id="view-about" class="view">
-      <div class="about-content">
-        <h2>Make it louder! 🔊</h2>
-        <p class="version">v1.0.0</p>
-        <p>A minimalist, privacy-first volume booster. Zero data collection, zero tracking.</p>
-
-        <div class="about-credits">
-          <p>Built with ❤️</p>
-          <a
-            id="support-link"
-            href="https://github.com/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            ⭐ Support on GitHub
-          </a>
-        </div>
+      <input id="bass-slider" type="range" min="0" max="20" step="1" value="0" />
+      <div class="range-labels">
+        <span>0 dB</span>
+        <span>20 dB</span>
       </div>
-    </section>
+    </div>
 
-    <script type="module" src="./main.ts"></script>
-  </body>
+    <!-- Mono Toggle -->
+    <div class="advanced-section">
+      <div class="advanced-header">
+        <span class="advanced-icon">🎧</span>
+        <span>Mono Audio</span>
+        <label class="toggle-switch" for="mono-toggle">
+          <input id="mono-toggle" type="checkbox" />
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+      <p class="advanced-hint">Centers audio for single-speaker setups.</p>
+    </div>
+  </section>
+
+  <!-- About View -->
+  <section id="view-about" class="view">
+    <div class="about-content">
+      <h2>Make it louder! 🔊</h2>
+      <p class="version">v2.0.0</p>
+      <p>A minimalist, privacy-first volume booster. Zero data collection, zero tracking.</p>
+
+      <div class="about-credits">
+        <p>Built with ❤️</p>
+        <a id="support-link" href="https://github.com/lezzowski/make-it-louder" target="_blank"
+          rel="noopener noreferrer">
+          ⭐ Support on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <script type="module" src="./main.ts"></script>
+</body>
+
 </html>
