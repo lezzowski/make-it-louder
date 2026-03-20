@@ -92,8 +92,10 @@ async function updateBadge(percentage: number): Promise<void> {
 
 // --- State Persistence ---
 
-/** Storage key for persisted popup state. */
-const STORAGE_KEY = 'popup_state';
+/** Returns the storage key scoped to a specific tab, preventing cross-tab state bleed. */
+function storageKey(tabId: number): string {
+  return `popup_state_${tabId}`;
+}
 
 interface PopupState {
   volume: number;
@@ -102,25 +104,31 @@ interface PopupState {
 }
 
 /**
- * Reads the last saved state from local storage.
- * Falls back to defaults (100% vol, 0 bass, stereo) if nothing is stored.
+ * Reads the saved state for the given tab from local storage.
+ * Falls back to defaults (100% vol, 0 bass, stereo) when no state exists for
+ * this tab — e.g. a freshly opened tab or a tab that was never boosted.
+ *
+ * @param tabId - The browser tab ID to scope the lookup.
  */
-async function loadState(): Promise<PopupState> {
-  const result = await browser.storage.local.get(STORAGE_KEY);
-  const saved = result[STORAGE_KEY] as PopupState | undefined;
+async function loadState(tabId: number): Promise<PopupState> {
+  const key = storageKey(tabId);
+  const result = await browser.storage.local.get(key);
+  const saved = result[key] as PopupState | undefined;
   return saved ?? { volume: 100, bass: 0, mono: false };
 }
 
 /**
- * Persists the current slider/toggle values to local storage.
+ * Persists the current slider/toggle values to local storage under the active
+ * tab's key so that other tabs retain their own independent state.
  */
 function persistState(): void {
+  if (!activeTabId) return;
   const state: PopupState = {
     volume: parseInt(volumeSlider.value, 10),
     bass: parseInt(bassSlider.value, 10),
     mono: monoToggle.checked,
   };
-  browser.storage.local.set({ [STORAGE_KEY]: state });
+  browser.storage.local.set({ [storageKey(activeTabId)]: state });
 }
 
 // --- UI Sync ---
@@ -270,7 +278,8 @@ tabAbout.addEventListener('click', () => switchTab(2));
   activeTabId = tab.id;
   await injectContentScript(activeTabId);
 
-  // Restore slider/toggle values from the previous session.
-  const state = await loadState();
+  // Restore slider/toggle values for this specific tab.
+  // Each tab has its own key, so switching tabs never leaks boosted state.
+  const state = await loadState(activeTabId);
   hydrateUI(state);
 })();
