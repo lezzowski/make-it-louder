@@ -15,7 +15,7 @@
 
 ## What it does
 
-Make it louder! routes any tab's audio through the Web Audio API and lets you freely amplify it beyond what the browser or OS normally allows. Volume, bass, and stereo/mono mode are all controlled from a clean three-tab popup. Every setting is per-tab and stateless — nothing is ever written to disk or sent anywhere.
+Make it louder! routes any tab's audio through the Web Audio API and lets you freely amplify it beyond what the browser or OS normally allows. Volume, bass, and stereo/mono mode are all controlled from a clean three-tab popup. Every setting is managed independently per-tab and persisted locally so your levels are remembered for each tab.
 
 ---
 
@@ -39,7 +39,7 @@ Make it louder! routes any tab's audio through the Web Audio API and lets you fr
 
 **Privacy**
 - No network requests of any kind
-- Slider and toggle values are persisted locally via `browser.storage.local` so settings survive popup close/reopen — no data ever leaves your device
+- Settings are persisted locally via `browser.storage.local` and strictly scoped per-tab — your preferences stay on your device and never bleed between different sites or tabs.
 - Declared as collecting no user data (`data_collection_permissions: none`) in the Firefox manifest
 - Requires only `activeTab`, `scripting`, and `storage` permissions
 
